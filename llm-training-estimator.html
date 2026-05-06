@@ -404,6 +404,26 @@ input[type=range]::-moz-range-thumb {
   color: var(--text);
 }
 
+.preset-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.preset-btn:hover {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: rgba(79,142,247,0.4);
+}
+
 .footnote {
   font-size: 11px;
   color: var(--dim);
@@ -460,6 +480,12 @@ footer {
   <div class="layout">
     <aside>
       <div class="panel">
+        <div class="panel-title">Presets</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:1rem;">
+          <button class="preset-btn" onclick="setPreset(120,80,8192)">GPT OSS 120B</button>
+          <button class="preset-btn" onclick="setPreset(27,48,5120)">Qwen 3.6 27B</button>
+          <button class="preset-btn" onclick="setPreset(35,28,4096)">Qwen3.6-35B-A3B</button>
+        </div>
         <div class="panel-title">Model architecture</div>
         <div class="slider-group">
           <div class="slider-header"><span class="slider-label">Parameters N</span><span class="slider-val" id="N-o">120 B</span></div>
@@ -569,6 +595,12 @@ const OP_LABEL={fp32:'fp32 Adam',bf16:'bf16 Adam',int8:'8-bit Adam',int4:'4-bit 
 const WP_LABEL={bf16:'bf16',fp8:'fp8',fp4:'fp4'};
 const MODE_COLORS={lora:'#a78bfa',sft:'#3ecf8e',rl:'#f97066',pretrain:'#4f8ef7'};
 
+function setPreset(n,l,d){
+  document.getElementById('N').value=n;
+  document.getElementById('L').value=l;
+  document.getElementById('d').value=d;
+  render();
+}
 function setMode(m){mode=m;document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('on',t.textContent.trim().toLowerCase().startsWith(m==='sft'?'full':m==='pretrain'?'pre':m)));render();}
 function setHW(h){hw=h;document.querySelectorAll('#hw-seg button').forEach((b,i)=>b.classList.toggle('on',['a100','h100','b200'][i]===h));render();}
 function setWP(p){wp=p;document.querySelectorAll('#wp-seg button').forEach((b,i)=>b.classList.toggle('on',['bf16','fp8','fp4'][i]===p));render();}

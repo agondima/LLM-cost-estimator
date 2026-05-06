@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Cost Estimator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f12;
+  --surface: #141720;
+  --surface2: #1c2030;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8eaf0;
+  --muted: #7a8099;
+  --dim: #4a5068;
+  --blue: #4f8ef7;
+  --blue-dim: rgba(79,142,247,0.12);
+  --teal: #22d3ee;
+  --teal-dim: rgba(34,211,238,0.1);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 300;
+  display: flex;
+  flex-direction: column;
+}
+
+nav {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0 1.5rem;
+  height: 48px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.wordmark {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--blue);
+  white-space: nowrap;
+}
+
+.tab-group {
+  display: flex;
+  gap: 4px;
+}
+
+.tab {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 400;
+  padding: 5px 16px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+.tab:hover { background: var(--surface2); color: var(--text); }
+.tab[data-page="train"].on {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: rgba(79,142,247,0.3);
+  font-weight: 500;
+}
+.tab[data-page="infer"].on {
+  background: var(--teal-dim);
+  color: var(--teal);
+  border-color: rgba(34,211,238,0.3);
+  font-weight: 500;
+}
+
+iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  display: block;
+}
+</style>
+</head>
+<body>
+<nav>
+  <span class="wordmark">&#9632; LLM Infra Tools</span>
+  <div class="tab-group">
+    <button class="tab on" data-page="train" onclick="loadTab('train')">Training</button>
+    <button class="tab" data-page="infer" onclick="loadTab('infer')">Inference</button>
+  </div>
+</nav>
+<iframe id="content" src="llm-training-estimator.html" title="LLM Cost Estimator"></iframe>
+
+<script>
+function loadTab(page) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.page === page));
+  document.getElementById('content').src = page === 'train'
+    ? 'llm-training-estimator.html'
+    : 'llm-inference-estimator.html';
+}
+</script>
+</body>
+</html>

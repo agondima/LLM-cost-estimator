@@ -460,6 +460,8 @@ footer {
   color: var(--dim);
   letter-spacing: .05em;
 }
+.in-iframe header, .in-iframe footer { display: none; }
+.in-iframe .shell { padding-top: 1.25rem; padding-bottom: 1.25rem; }
 </style>
 </head>
 <body>
@@ -587,7 +589,7 @@ let mode='lora', hw='a100', wp='bf16', op='fp32';
 const GPU={
   a100:{name:'A100 80GB',mem_gb:80,bf16_tflops:312,fp8_tflops:312,fp4_tflops:312},
   h100:{name:'H100 80GB',mem_gb:80,bf16_tflops:494,fp8_tflops:989,fp4_tflops:989},
-  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:900,fp8_tflops:1800,fp4_tflops:4500},
+  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:1125,fp8_tflops:2250,fp4_tflops:4500},
 };
 const WP_BYTES={bf16:2,fp8:1,fp4:0.5};
 const OP_BYTES={fp32:4,bf16:2,int8:1,int4:0.5};
@@ -749,6 +751,7 @@ function render(){
   document.getElementById('footnote').textContent=notes[mode];
 }
 render();
+if(window.self!==window.top)document.documentElement.classList.add('in-iframe');
 </script>
 </body>
 </html>

@@ -435,6 +435,8 @@ footer {
   color: var(--dim);
   letter-spacing: .05em;
 }
+.in-iframe header, .in-iframe footer { display: none; }
+.in-iframe .shell { padding-top: 1.25rem; padding-bottom: 1.25rem; }
 </style>
 </head>
 <body>
@@ -550,7 +552,7 @@ let hw='a100', wp='bf16', kv='fp16';
 const GPU={
   a100:{name:'A100 80GB',mem_gb:80,bf16_tflops:312,fp8_tflops:312,fp4_tflops:312,mem_bw:2.0},
   h100:{name:'H100 80GB',mem_gb:80,bf16_tflops:494,fp8_tflops:989,fp4_tflops:989,mem_bw:3.35},
-  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:900,fp8_tflops:1800,fp4_tflops:4500,mem_bw:8.0},
+  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:1125,fp8_tflops:2250,fp4_tflops:4500,mem_bw:8.0},
 };
 const WP_BYTES={bf16:2,fp8:1,fp4:0.5};
 const KV_BYTES={fp16:2,fp8:1,int4:0.5};
@@ -680,6 +682,7 @@ function render(){
   document.getElementById('footnote').textContent=`Decode is ${bound}-bound at B=${B} (TPOT ${fmtT(tpot)}). Prefill throughput: ${fmtTput(prefill_tput)} tok/s. Full generation time per request: ${fmtT(total_gen)}. KV model assumes full MHA (2·L·B·ctx·d·bytes); GQA/MQA will reduce KV proportionally to n_kv_heads/n_heads.`;
 }
 render();
+if(window.self!==window.top)document.documentElement.classList.add('in-iframe');
 </script>
 </body>
 </html>

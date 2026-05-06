@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Inference Cost Estimator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f12;
+  --surface: #141720;
+  --surface2: #1c2030;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8eaf0;
+  --muted: #7a8099;
+  --dim: #4a5068;
+  --blue: #4f8ef7;
+  --blue-dim: rgba(79,142,247,0.12);
+  --green: #3ecf8e;
+  --green-dim: rgba(62,207,142,0.12);
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167,139,250,0.12);
+  --coral: #f97066;
+  --coral-dim: rgba(249,112,102,0.12);
+  --teal: #22d3ee;
+  --teal-dim: rgba(34,211,238,0.1);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 300;
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+.shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.header-left {}
+.wordmark {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 8px;
+}
+h1 {
+  font-family: var(--sans);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.subtitle {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.badge-blue { color: var(--blue); border-color: rgba(79,142,247,0.3); background: var(--blue-dim); }
+.badge-green { color: var(--green); border-color: rgba(62,207,142,0.3); background: var(--green-dim); }
+.badge-amber { color: var(--amber); border-color: rgba(245,166,35,0.3); background: var(--amber-dim); }
+.badge-teal { color: var(--teal); border-color: rgba(34,211,238,0.3); background: var(--teal-dim); }
+
+.layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.panel-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 1rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.slider-group { margin-bottom: .85rem; }
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+.slider-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.slider-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--surface2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+  transition: transform .15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--blue); border: 2px solid var(--bg); cursor: pointer;
+}
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+.seg-group { margin-bottom: 1rem; }
+.seg-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+.seg {
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.seg button {
+  flex: 1;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 400;
+  padding: 6px 4px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.seg button:last-child { border-right: none; }
+.seg button:hover { background: var(--surface); color: var(--text); }
+.seg button.on {
+  background: var(--surface2);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 860px) { .metrics-grid { grid-template-columns: repeat(2,1fr); } }
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+}
+.metric-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+.metric-val {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.2;
+}
+.metric-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.metric-save {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--green);
+  margin-top: 2px;
+}
+
+.section-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: .75rem;
+  margin-top: 1.25rem;
+}
+
+.breakdown {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.bd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+}
+.bd-row:last-child { border-bottom: none; font-weight: 500; }
+.bd-row.total {
+  background: var(--surface2);
+}
+.bd-key {
+  font-size: 12px;
+  color: var(--muted);
+  flex: 1;
+  min-width: 0;
+}
+.bd-key small {
+  display: block;
+  font-size: 10px;
+  color: var(--dim);
+  margin-top: 1px;
+  font-family: var(--mono);
+}
+.bd-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+.bd-bar {
+  height: 3px;
+  background: var(--surface2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0 14px 8px;
+}
+.bd-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .3s ease;
+}
+
+.savings-section { margin-bottom: 1rem; }
+.sbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+.sbar-label {
+  font-size: 11px;
+  color: var(--muted);
+  width: 155px;
+  flex-shrink: 0;
+}
+.sbar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.sbar-fill { height: 100%; border-radius: 3px; transition: width .35s ease; }
+.sbar-pct {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  width: 38px;
+  text-align: right;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+@media (max-width: 860px) { .compare-grid { grid-template-columns: repeat(2,1fr); } }
+.cc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem;
+  transition: border-color .15s;
+}
+.cc.active { border-color: rgba(79,142,247,0.4); }
+.cc-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.cc-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.cc-row span:last-child {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.preset-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.preset-btn:hover {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: rgba(79,142,247,0.4);
+}
+
+.footnote {
+  font-size: 11px;
+  color: var(--dim);
+  line-height: 1.7;
+  padding: .75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--teal);
+  margin-top: 1rem;
+}
+.footnote::before {
+  content: 'NOTE  ';
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--teal);
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.footer-note {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: .05em;
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="header-left">
+      <div class="wordmark">&#9632; LLM Infra Tools</div>
+      <h1>Inference Cost Estimator</h1>
+      <p class="subtitle">Per-request memory &amp; latency — weights, KV cache &amp; throughput</p>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;padding-top:4px;">
+      <span class="badge badge-blue">A100 / H100 / B200</span>
+      <span class="badge badge-green">fp4 / fp8 / bf16</span>
+      <span class="badge badge-teal">KV quantization</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="panel">
+        <div class="panel-title">Presets</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:1rem;">
+          <button class="preset-btn" onclick="setPreset(120,80,8192)">GPT OSS 120B</button>
+          <button class="preset-btn" onclick="setPreset(27,48,5120)">Qwen 3.6 27B</button>
+          <button class="preset-btn" onclick="setPreset(35,28,4096)">Qwen3.6-35B-A3B</button>
+        </div>
+
+        <div class="panel-title">Model architecture</div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Parameters N</span><span class="slider-val" id="N-o">120 B</span></div>
+          <input type="range" id="N" min="1" max="500" step="1" value="120">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Layers L</span><span class="slider-val" id="L-o">80</span></div>
+          <input type="range" id="L" min="8" max="128" step="1" value="80">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Hidden dim d</span><span class="slider-val" id="d-o">8192</span></div>
+          <input type="range" id="d" min="512" max="16384" step="256" value="8192">
+        </div>
+
+        <hr class="divider">
+        <div class="panel-title">Request config</div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Concurrent requests B</span><span class="slider-val" id="B-o">8</span></div>
+          <input type="range" id="B" min="1" max="128" step="1" value="8">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Prompt length S_p</span><span class="slider-val" id="Sp-o">2048</span></div>
+          <input type="range" id="Sp" min="64" max="32768" step="64" value="2048">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Generation length S_g</span><span class="slider-val" id="Sg-o">512</span></div>
+          <input type="range" id="Sg" min="64" max="8192" step="64" value="512">
+        </div>
+
+        <hr class="divider">
+        <div class="seg-group">
+          <div class="seg-label">Hardware</div>
+          <div class="seg" id="hw-seg">
+            <button class="on" onclick="setHW('a100')">A100 80G</button>
+            <button onclick="setHW('h100')">H100 80G</button>
+            <button onclick="setHW('b200')">B200 192G</button>
+          </div>
+        </div>
+        <div class="seg-group">
+          <div class="seg-label">Weight precision</div>
+          <div class="seg" id="wp-seg">
+            <button class="on" onclick="setWP('bf16')">bf16</button>
+            <button onclick="setWP('fp8')">fp8</button>
+            <button onclick="setWP('fp4')">fp4</button>
+          </div>
+        </div>
+        <div class="seg-group">
+          <div class="seg-label">KV cache precision</div>
+          <div class="seg" id="kv-seg">
+            <button class="on" onclick="setKV('fp16')">fp16</button>
+            <button onclick="setKV('fp8')">fp8</button>
+            <button onclick="setKV('int4')">int4</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="section-title">Per-request summary</div>
+      <div class="metrics-grid" id="main-cards"></div>
+
+      <div class="section-title">Memory savings vs baseline (bf16 weights + fp16 KV)</div>
+      <div class="savings-section" id="savings-bars"></div>
+
+      <div class="section-title">Memory breakdown</div>
+      <div class="breakdown" id="mem-bd"></div>
+
+      <div class="section-title">Latency breakdown</div>
+      <div class="breakdown" id="lat-bd"></div>
+
+      <div class="section-title">Hardware comparison — at current precision</div>
+      <div class="compare-grid" id="compare"></div>
+
+      <div class="footnote" id="footnote"></div>
+    </main>
+  </div>
+
+  <footer>
+    <span class="footer-note">Estimates assume dense transformer, full MHA (no GQA). Memory-bw model: weights + KV read per decode step. H100 fp8 via TransformerEngine.</span>
+    <span class="footer-note">Generated with Claude &mdash; Anthropic</span>
+  </footer>
+</div>
+
+<script>
+let hw='a100', wp='bf16', kv='fp16';
+const GPU={
+  a100:{name:'A100 80GB',mem_gb:80,bf16_tflops:312,fp8_tflops:312,fp4_tflops:312,mem_bw:2.0},
+  h100:{name:'H100 80GB',mem_gb:80,bf16_tflops:494,fp8_tflops:989,fp4_tflops:989,mem_bw:3.35},
+  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:900,fp8_tflops:1800,fp4_tflops:4500,mem_bw:8.0},
+};
+const WP_BYTES={bf16:2,fp8:1,fp4:0.5};
+const KV_BYTES={fp16:2,fp8:1,int4:0.5};
+const WP_LABEL={bf16:'bf16',fp8:'fp8',fp4:'fp4'};
+const KV_LABEL={fp16:'fp16',fp8:'fp8',int4:'int4'};
+const HW_COLORS={a100:'#4f8ef7',h100:'#3ecf8e',b200:'#a78bfa'};
+
+function setPreset(n,l,d){
+  document.getElementById('N').value=n;
+  document.getElementById('L').value=l;
+  document.getElementById('d').value=d;
+  render();
+}
+function setHW(h){hw=h;document.querySelectorAll('#hw-seg button').forEach((b,i)=>b.classList.toggle('on',['a100','h100','b200'][i]===h));render();}
+function setWP(p){wp=p;document.querySelectorAll('#wp-seg button').forEach((b,i)=>b.classList.toggle('on',['bf16','fp8','fp4'][i]===p));render();}
+function setKV(k){kv=k;document.querySelectorAll('#kv-seg button').forEach((b,i)=>b.classList.toggle('on',['fp16','fp8','int4'][i]===k));render();}
+['N','L','d','B','Sp','Sg'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+
+function fmt(n){if(n>=1000)return(n/1000).toFixed(1)+' TB';if(n>=1)return n.toFixed(1)+' GB';return(n*1024).toFixed(0)+' MB';}
+function fmtF(f){if(f>=1e18)return(f/1e18).toFixed(2)+' EFlop';if(f>=1e15)return(f/1e15).toFixed(2)+' PFlop';if(f>=1e12)return(f/1e12).toFixed(2)+' TFlop';if(f>=1e9)return(f/1e9).toFixed(1)+' GFlop';return(f/1e6).toFixed(1)+' MFlop';}
+function fmtT(s){if(s<0.001)return(s*1e6).toFixed(0)+' µs';if(s<1)return(s*1000).toFixed(0)+' ms';if(s<60)return s.toFixed(1)+' s';return(s/60).toFixed(1)+' min';}
+function fmtTput(t){if(t>=1e6)return(t/1e6).toFixed(1)+' Mtok/s';if(t>=1000)return(t/1000).toFixed(1)+' ktok/s';return t.toFixed(0)+' tok/s';}
+function bar(v,max,col){const p=Math.min(100,max>0?v/max*100:0).toFixed(1);return`<div class="bd-bar"><div class="bd-fill" style="width:${p}%;background:${col}"></div></div>`;}
+
+function render(){
+  const N_B=+document.getElementById('N').value;
+  const L=+document.getElementById('L').value;
+  const d=+document.getElementById('d').value;
+  const B=+document.getElementById('B').value;
+  const S_p=+document.getElementById('Sp').value;
+  const S_g=+document.getElementById('Sg').value;
+
+  document.getElementById('N-o').textContent=N_B+' B';
+  document.getElementById('L-o').textContent=L;
+  document.getElementById('d-o').textContent=d.toLocaleString();
+  document.getElementById('B-o').textContent=B;
+  document.getElementById('Sp-o').textContent=S_p.toLocaleString();
+  document.getElementById('Sg-o').textContent=S_g.toLocaleString();
+
+  const wpB=WP_BYTES[wp],kvB=KV_BYTES[kv],gpu=GPU[hw];
+  const effT=wp==='fp4'?gpu.fp4_tflops:wp==='fp8'?gpu.fp8_tflops:gpu.bf16_tflops;
+  const N=N_B*1e9;
+
+  // Memory
+  const w_mem=N*wpB/1e9;
+  const kv_mem=2*L*B*(S_p+S_g)*d*kvB/1e9;
+  const total_mem=w_mem+kv_mem;
+  const base_w=N*2/1e9,base_kv=2*L*B*(S_p+S_g)*d*2/1e9,base_total=base_w+base_kv;
+  const saved_gb=base_total-total_mem;
+  const saved_pct=base_total>0?((saved_gb/base_total)*100).toFixed(0):0;
+  const gpus=Math.ceil(total_mem/gpu.mem_gb);
+
+  // Latency — compute or memory-bw bound
+  const prefill_flops=2*N*B*S_p+2*B*L*S_p*S_p*d;
+  const ttft=prefill_flops/(effT*1e12);
+  const avg_ctx=S_p+S_g/2;
+  const decode_flops_step=2*N*B+2*B*L*avg_ctx*d;
+  const tpot_comp=decode_flops_step/(effT*1e12);
+  const tpot_mem=(N*wpB+2*L*avg_ctx*d*kvB)/(gpu.mem_bw*1e12);
+  const tpot=Math.max(tpot_comp,tpot_mem);
+  const bound=tpot_mem>=tpot_comp?'memory-bw':'compute';
+  const decode_tput=B/tpot;
+  const prefill_tput=B*S_p/ttft;
+  const total_gen=ttft+tpot*S_g;
+
+  // Summary cards
+  document.getElementById('main-cards').innerHTML=`
+    <div class="metric"><div class="metric-label">Total memory</div><div class="metric-val">${fmt(total_mem)}</div>${saved_pct>0?`<div class="metric-save">&#8722;${saved_pct}% vs bf16</div>`:'<div class="metric-sub">baseline</div>'}</div>
+    <div class="metric"><div class="metric-label">Min GPUs</div><div class="metric-val">${gpus}&times;</div><div class="metric-sub">${gpu.name}</div></div>
+    <div class="metric"><div class="metric-label">TTFT</div><div class="metric-val">${fmtT(ttft)}</div><div class="metric-sub">${B} req × ${S_p.toLocaleString()} tok</div></div>
+    <div class="metric"><div class="metric-label">Decode tok/s</div><div class="metric-val">${fmtTput(decode_tput)}</div><div class="metric-sub">${bound}-bound</div></div>
+  `;
+
+  // Savings bars
+  const wSave=base_w-w_mem,kvSave=base_kv-kv_mem;
+  document.getElementById('savings-bars').innerHTML=[
+    {label:'Weight precision',save:wSave,base:base_w,col:'#4f8ef7'},
+    {label:'KV cache precision',save:kvSave,base:base_kv,col:'#22d3ee'},
+    {label:'Total',save:saved_gb,base:base_total,col:'#a78bfa'},
+  ].map(({label,save,base,col})=>{
+    const p=Math.min(100,base>0?save/base*100:0);
+    return`<div class="sbar"><span class="sbar-label">${label}</span><div class="sbar-track"><div class="sbar-fill" style="width:${p.toFixed(1)}%;background:${col}"></div></div><span class="sbar-pct" style="color:${col}">${save>0?'&#8722;'+p.toFixed(0)+'%':'0%'}</span></div>`;
+  }).join('');
+
+  // Memory breakdown
+  let mh=`<div class="bd-row"><div class="bd-key">Model weights (${WP_LABEL[wp]})<small>${N_B}B params × ${wpB} B/param</small></div><div class="bd-val">${fmt(w_mem)}</div></div>`;
+  mh+=bar(w_mem,total_mem,'#4f8ef7');
+  mh+=`<div class="bd-row"><div class="bd-key">KV cache (${KV_LABEL[kv]})<small>2·L·B·(S_p+S_g)·d × ${kvB} B/elem — ctx=${(S_p+S_g).toLocaleString()} tok</small></div><div class="bd-val">${fmt(kv_mem)}</div></div>`;
+  mh+=bar(kv_mem,total_mem,'#22d3ee');
+  mh+=`<div class="bd-row total"><div class="bd-key" style="color:var(--text);font-weight:500;">Total</div><div class="bd-val">${fmt(total_mem)}</div></div>`;
+  document.getElementById('mem-bd').innerHTML=mh;
+
+  // Latency breakdown
+  const maxL=Math.max(ttft,tpot_comp,tpot_mem);
+  const bottleneckTag=(which)=>bound===which?` <span style="font-size:10px;font-family:var(--mono);margin-left:4px;color:${which==='memory-bw'?'var(--amber)':'var(--green)'}">&#9656; bottleneck</span>`:'';
+  let lh=`<div class="bd-row"><div class="bd-key">Prefill — TTFT<small>${fmtF(prefill_flops)} ÷ ${effT} TFlop/s</small></div><div class="bd-val">${fmtT(ttft)}</div></div>`;
+  lh+=bar(ttft,maxL,'#4f8ef7');
+  lh+=`<div class="bd-row"><div class="bd-key">TPOT — compute${bottleneckTag('compute')}<small>${fmtF(decode_flops_step)}/step ÷ ${effT} TFlop/s</small></div><div class="bd-val">${fmtT(tpot_comp)}</div></div>`;
+  lh+=bar(tpot_comp,maxL,'#3ecf8e');
+  lh+=`<div class="bd-row"><div class="bd-key">TPOT — memory-bw${bottleneckTag('memory-bw')}<small>${fmt(N*wpB/1e9+2*L*avg_ctx*d*kvB/1e9)} read ÷ ${gpu.mem_bw} TB/s</small></div><div class="bd-val">${fmtT(tpot_mem)}</div></div>`;
+  lh+=bar(tpot_mem,maxL,'#f5a623');
+  lh+=`<div class="bd-row total"><div class="bd-key" style="color:var(--text);font-weight:500;">Total generation<small>TTFT + TPOT × ${S_g} output tokens</small></div><div class="bd-val">${fmtT(total_gen)}</div></div>`;
+  document.getElementById('lat-bd').innerHTML=lh;
+
+  // Hardware compare
+  document.getElementById('compare').innerHTML=['a100','h100','b200'].map(hw_=>{
+    const g_=GPU[hw_];
+    const eT_=wp==='fp4'?g_.fp4_tflops:wp==='fp8'?g_.fp8_tflops:g_.bf16_tflops;
+    const tm_=N*wpB/1e9+2*L*B*(S_p+S_g)*d*kvB/1e9;
+    const gpus_=Math.ceil(tm_/g_.mem_gb);
+    const pf_=(2*N*B*S_p+2*B*L*S_p*S_p*d)/(eT_*1e12);
+    const dc_step_=2*N*B+2*B*L*avg_ctx*d;
+    const tpot_c_=dc_step_/(eT_*1e12);
+    const tpot_m_=(N*wpB+2*L*avg_ctx*d*kvB)/(g_.mem_bw*1e12);
+    const tpot_=Math.max(tpot_c_,tpot_m_);
+    const bound_=tpot_m_>=tpot_c_?'mem-bw':'compute';
+    return`<div class="cc${hw_===hw?' active':''}">
+      <div class="cc-title" style="color:${HW_COLORS[hw_]}">${g_.name}</div>
+      <div class="cc-row"><span>Min GPUs</span><span>${gpus_}&times;</span></div>
+      <div class="cc-row"><span>TTFT</span><span>${fmtT(pf_)}</span></div>
+      <div class="cc-row"><span>TPOT</span><span>${fmtT(tpot_)}</span></div>
+      <div class="cc-row"><span>Decode tok/s</span><span>${fmtTput(B/tpot_)}</span></div>
+      <div class="cc-row"><span>Bound</span><span>${bound_}</span></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('footnote').textContent=`Decode is ${bound}-bound at B=${B} (TPOT ${fmtT(tpot)}). Prefill throughput: ${fmtTput(prefill_tput)} tok/s. Full generation time per request: ${fmtT(total_gen)}. KV model assumes full MHA (2·L·B·ctx·d·bytes); GQA/MQA will reduce KV proportionally to n_kv_heads/n_heads.`;
+}
+render();
+</script>
+</body>
+</html>

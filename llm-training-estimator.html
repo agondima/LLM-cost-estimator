@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Training Cost Estimator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f12;
+  --surface: #141720;
+  --surface2: #1c2030;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8eaf0;
+  --muted: #7a8099;
+  --dim: #4a5068;
+  --blue: #4f8ef7;
+  --blue-dim: rgba(79,142,247,0.12);
+  --green: #3ecf8e;
+  --green-dim: rgba(62,207,142,0.12);
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167,139,250,0.12);
+  --coral: #f97066;
+  --coral-dim: rgba(249,112,102,0.12);
+  --teal: #22d3ee;
+  --teal-dim: rgba(34,211,238,0.1);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 300;
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+.shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.header-left {}
+.wordmark {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 8px;
+}
+h1 {
+  font-family: var(--sans);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.subtitle {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.badge-blue { color: var(--blue); border-color: rgba(79,142,247,0.3); background: var(--blue-dim); }
+.badge-green { color: var(--green); border-color: rgba(62,207,142,0.3); background: var(--green-dim); }
+.badge-amber { color: var(--amber); border-color: rgba(245,166,35,0.3); background: var(--amber-dim); }
+
+.layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.panel-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 1rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.slider-group { margin-bottom: .85rem; }
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+.slider-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.slider-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--surface2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+  transition: transform .15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--blue); border: 2px solid var(--bg); cursor: pointer;
+}
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+.seg-group { margin-bottom: 1rem; }
+.seg-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+.seg {
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.seg button {
+  flex: 1;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 400;
+  padding: 6px 4px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.seg button:last-child { border-right: none; }
+.seg button:hover { background: var(--surface); color: var(--text); }
+.seg button.on {
+  background: var(--surface2);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+.mode-tab {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 400;
+  padding: 5px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+.mode-tab:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+.mode-tab.on {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: rgba(79,142,247,0.3);
+  font-weight: 500;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 860px) { .metrics-grid { grid-template-columns: repeat(2,1fr); } }
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+}
+.metric-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+.metric-val {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.2;
+}
+.metric-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.metric-save {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--green);
+  margin-top: 2px;
+}
+
+.section-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: .75rem;
+  margin-top: 1.25rem;
+}
+
+.breakdown {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.bd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+}
+.bd-row:last-child { border-bottom: none; font-weight: 500; }
+.bd-row.total {
+  background: var(--surface2);
+}
+.bd-key {
+  font-size: 12px;
+  color: var(--muted);
+  flex: 1;
+  min-width: 0;
+}
+.bd-key small {
+  display: block;
+  font-size: 10px;
+  color: var(--dim);
+  margin-top: 1px;
+  font-family: var(--mono);
+}
+.bd-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+.bd-bar {
+  height: 3px;
+  background: var(--surface2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0 14px 8px;
+}
+.bd-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .3s ease;
+}
+
+.savings-section { margin-bottom: 1rem; }
+.sbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+.sbar-label {
+  font-size: 11px;
+  color: var(--muted);
+  width: 155px;
+  flex-shrink: 0;
+}
+.sbar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.sbar-fill { height: 100%; border-radius: 3px; transition: width .35s ease; }
+.sbar-pct {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  width: 38px;
+  text-align: right;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+@media (max-width: 860px) { .compare-grid { grid-template-columns: repeat(2,1fr); } }
+.cc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem;
+  transition: border-color .15s;
+}
+.cc.active { border-color: rgba(79,142,247,0.4); }
+.cc-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.cc-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.cc-row span:last-child {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.footnote {
+  font-size: 11px;
+  color: var(--dim);
+  line-height: 1.7;
+  padding: .75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--blue);
+  margin-top: 1rem;
+}
+.footnote::before {
+  content: 'NOTE  ';
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--blue);
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.footer-note {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: .05em;
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="header-left">
+      <div class="wordmark">&#9632; LLM Infra Tools</div>
+      <h1>Training Cost Estimator</h1>
+      <p class="subtitle">Per-step memory &amp; compute — with precision &amp; optimizer optimizations</p>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;padding-top:4px;">
+      <span class="badge badge-blue">A100 / H100 / B200</span>
+      <span class="badge badge-green">fp4 / fp8 / bf16</span>
+      <span class="badge badge-amber">8-bit Adam</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="panel">
+        <div class="panel-title">Model architecture</div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Parameters N</span><span class="slider-val" id="N-o">120 B</span></div>
+          <input type="range" id="N" min="1" max="500" step="1" value="120">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Layers L</span><span class="slider-val" id="L-o">80</span></div>
+          <input type="range" id="L" min="8" max="128" step="1" value="80">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Hidden dim d</span><span class="slider-val" id="d-o">8192</span></div>
+          <input type="range" id="d" min="512" max="16384" step="256" value="8192">
+        </div>
+
+        <hr class="divider">
+        <div class="panel-title">Training config</div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Batch size B</span><span class="slider-val" id="B-o">8</span></div>
+          <input type="range" id="B" min="1" max="128" step="1" value="8">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">Sequence length S</span><span class="slider-val" id="S-o">4096</span></div>
+          <input type="range" id="S" min="512" max="65536" step="512" value="4096">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">LoRA rank r</span><span class="slider-val" id="r-o">16</span></div>
+          <input type="range" id="r" min="4" max="256" step="4" value="16">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header"><span class="slider-label">LoRA target layers %</span><span class="slider-val" id="lf-o">30%</span></div>
+          <input type="range" id="lf" min="5" max="100" step="5" value="30">
+        </div>
+
+        <hr class="divider">
+        <div class="seg-group">
+          <div class="seg-label">Hardware</div>
+          <div class="seg" id="hw-seg">
+            <button class="on" onclick="setHW('a100')">A100 80G</button>
+            <button onclick="setHW('h100')">H100 80G</button>
+            <button onclick="setHW('b200')">B200 192G</button>
+          </div>
+        </div>
+        <div class="seg-group">
+          <div class="seg-label">Weight precision</div>
+          <div class="seg" id="wp-seg">
+            <button class="on" onclick="setWP('bf16')">bf16</button>
+            <button onclick="setWP('fp8')">fp8</button>
+            <button onclick="setWP('fp4')">fp4</button>
+          </div>
+        </div>
+        <div class="seg-group">
+          <div class="seg-label">Optimizer states</div>
+          <div class="seg" id="op-seg">
+            <button class="on" onclick="setOP('fp32')">fp32</button>
+            <button onclick="setOP('bf16')">bf16</button>
+            <button onclick="setOP('int8')">int8</button>
+            <button onclick="setOP('int4')">int4</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="section-title">Training regime</div>
+      <div class="mode-tabs" id="mode-tabs">
+        <button class="mode-tab on" onclick="setMode('lora')">LoRA</button>
+        <button class="mode-tab" onclick="setMode('sft')">Full fine-tuning</button>
+        <button class="mode-tab" onclick="setMode('rl')">RL (PPO)</button>
+        <button class="mode-tab" onclick="setMode('pretrain')">Pre-training</button>
+      </div>
+
+      <div class="section-title">Per-step summary</div>
+      <div class="metrics-grid" id="main-cards"></div>
+
+      <div class="section-title">Memory savings vs baseline (bf16 + fp32 Adam)</div>
+      <div class="savings-section" id="savings-bars"></div>
+
+      <div class="section-title">Memory breakdown</div>
+      <div class="breakdown" id="mem-bd"></div>
+
+      <div class="section-title">Compute breakdown</div>
+      <div class="breakdown" id="comp-bd"></div>
+
+      <div class="section-title">All regimes — at current precision &amp; hardware</div>
+      <div class="compare-grid" id="compare"></div>
+
+      <div class="footnote" id="footnote"></div>
+    </main>
+  </div>
+
+  <footer>
+    <span class="footer-note">Estimates assume dense transformer, gradient checkpointing, single-GPU baseline. H100 fp8 via TransformerEngine. B200 fp4 emerging.</span>
+    <span class="footer-note">Generated with Claude &mdash; Anthropic</span>
+  </footer>
+</div>
+
+<script>
+let mode='lora', hw='a100', wp='bf16', op='fp32';
+const GPU={
+  a100:{name:'A100 80GB',mem_gb:80,bf16_tflops:312,fp8_tflops:312,fp4_tflops:312},
+  h100:{name:'H100 80GB',mem_gb:80,bf16_tflops:494,fp8_tflops:989,fp4_tflops:989},
+  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:900,fp8_tflops:1800,fp4_tflops:4500},
+};
+const WP_BYTES={bf16:2,fp8:1,fp4:0.5};
+const OP_BYTES={fp32:4,bf16:2,int8:1,int4:0.5};
+const OP_LABEL={fp32:'fp32 Adam',bf16:'bf16 Adam',int8:'8-bit Adam',int4:'4-bit (exp.)'};
+const WP_LABEL={bf16:'bf16',fp8:'fp8',fp4:'fp4'};
+const MODE_COLORS={lora:'#a78bfa',sft:'#3ecf8e',rl:'#f97066',pretrain:'#4f8ef7'};
+
+function setMode(m){mode=m;document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('on',t.textContent.trim().toLowerCase().startsWith(m==='sft'?'full':m==='pretrain'?'pre':m)));render();}
+function setHW(h){hw=h;document.querySelectorAll('#hw-seg button').forEach((b,i)=>b.classList.toggle('on',['a100','h100','b200'][i]===h));render();}
+function setWP(p){wp=p;document.querySelectorAll('#wp-seg button').forEach((b,i)=>b.classList.toggle('on',['bf16','fp8','fp4'][i]===p));render();}
+function setOP(p){op=p;document.querySelectorAll('#op-seg button').forEach((b,i)=>b.classList.toggle('on',['fp32','bf16','int8','int4'][i]===p));render();}
+['N','L','d','B','S','r','lf'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+
+function fmt(n){if(n>=1000)return(n/1000).toFixed(1)+' TB';if(n>=1)return n.toFixed(1)+' GB';return(n*1024).toFixed(0)+' MB';}
+function fmtF(f){if(f>=1e18)return(f/1e18).toFixed(2)+' EFlop';if(f>=1e15)return(f/1e15).toFixed(2)+' PFlop';if(f>=1e12)return(f/1e12).toFixed(2)+' TFlop';if(f>=1e9)return(f/1e9).toFixed(1)+' GFlop';return(f/1e6).toFixed(1)+' MFlop';}
+function fmtT(s){if(s<1)return(s*1000).toFixed(0)+' ms';if(s<60)return s.toFixed(1)+' s';return(s/60).toFixed(1)+' min';}
+
+function calcMem(p){
+  const{N_B,L,d,B,S,r,lf,m,wpB,opB}=p;
+  const N=N_B*1e9;
+  let items,total;
+  if(m==='lora'){
+    const trainN=2*r*d*L*(lf/100);
+    const w_base=N*2/1e9;
+    const opt=trainN*2*opB/1e9;
+    const grads=trainN*4/1e9;
+    const act=B*S*d*wpB*L*(lf/100)/1e9;
+    total=w_base+opt+grads+act;
+    items=[['Base weights (bf16)',w_base,'Frozen, loaded in bf16'],['Optimizer states ('+OP_LABEL[op]+')',opt,'2 moments × adapter params × '+opB+' B'],['Adapter gradients (fp32)',grads,'fp32 adapter grads'],['Activations ('+WP_LABEL[wp]+')',act,'Active layer checkpointed']];
+  }else if(m==='sft'||m==='pretrain'){
+    const w_fwd=N*wpB/1e9,w_master=N*2/1e9,opt=N*2*opB/1e9,grads=N*4/1e9,act=B*S*d*wpB*L/1e9;
+    total=w_fwd+w_master+opt+grads+act;
+    items=[['Weights fwd ('+WP_LABEL[wp]+')',w_fwd,wpB+' bytes/param forward'],['Weights master (bf16)',w_master,'bf16 master for stable updates'],['Optimizer states ('+OP_LABEL[op]+')',opt,'2 moments × N × '+opB+' B/param'],['Gradients (fp32)',grads,'4 bytes/param'],['Activations ('+WP_LABEL[wp]+')',act,'Gradient checkpointing']];
+  }else{
+    const w_fwd=N*wpB/1e9,w_master=N*2/1e9,ref=N*2/1e9,opt=N*2*opB/1e9,grads=N*4/1e9,act=B*S*d*wpB*L/1e9,kv=2*L*B*S*d*2/1e9;
+    total=w_fwd+w_master+ref+opt+grads+act+kv;
+    items=[['Policy fwd ('+WP_LABEL[wp]+')',w_fwd,'Forward pass'],['Policy master (bf16)',w_master,'Optimizer master copy'],['Reference model (bf16)',ref,'Frozen, KL penalty'],['Optimizer states ('+OP_LABEL[op]+')',opt,OP_LABEL[op]+', 2×trainable'],['Gradients (fp32)',grads,'Policy gradients'],['Activations ('+WP_LABEL[wp]+')',act,'Policy fwd activations'],['KV cache (rollout)',kv,'2·L·B·S·d·2 bytes']];
+  }
+  return{total,items};
+}
+
+function calcFlops(p){
+  const{N_B,L,d,B,S,r,lf,m}=p;
+  const N=N_B*1e9;
+  const mlp=2*N*S*B,attn=2*B*L*S*S*d,fwd=mlp+attn,bwd=2*fwd;
+  let total,items;
+  if(m==='lora'){
+    const lf_=lf/100;
+    total=fwd+bwd*lf_+fwd*(1-lf_);
+    items=[['Forward (full model)',fwd,'2·N·S·B + 2·B·L·S²·d'],['Backward (adapter layers)',fwd*lf_*2,'2× fwd × '+lf+'% layers'],['Backward (frozen, no grad)',fwd*(1-lf_),'Propagated, no grad store']];
+  }else if(m==='sft'||m==='pretrain'){
+    total=fwd+bwd;
+    items=[['MLP forward',mlp,'2·N·S·B'],['Attention forward',attn,'2·B·L·S²·d'],['Backward pass',bwd,'≈ 2× forward']];
+  }else{
+    total=fwd*2+fwd+bwd;
+    items=[['Policy rollout fwd',fwd,'Generate responses'],['Reference model fwd',fwd,'KL divergence'],['PPO forward',fwd,'Update step'],['PPO backward',bwd,'≈ 2× fwd']];
+  }
+  return{total,items};
+}
+
+function bar(v,max,col){const p=Math.min(100,max>0?v/max*100:0).toFixed(1);return`<div class="bd-bar"><div class="bd-fill" style="width:${p}%;background:${col}"></div></div>`;}
+
+function render(){
+  const N_B=+document.getElementById('N').value;
+  const L=+document.getElementById('L').value;
+  const d=+document.getElementById('d').value;
+  const B=+document.getElementById('B').value;
+  const S=+document.getElementById('S').value;
+  const r=+document.getElementById('r').value;
+  const lf=+document.getElementById('lf').value;
+
+  document.getElementById('N-o').textContent=N_B+' B';
+  document.getElementById('L-o').textContent=L;
+  document.getElementById('d-o').textContent=d.toLocaleString();
+  document.getElementById('B-o').textContent=B;
+  document.getElementById('S-o').textContent=S.toLocaleString();
+  document.getElementById('r-o').textContent=r;
+  document.getElementById('lf-o').textContent=lf+'%';
+
+  const wpB=WP_BYTES[wp],opB=OP_BYTES[op],gpu=GPU[hw];
+  const effT=wp==='fp4'?gpu.fp4_tflops:wp==='fp8'?gpu.fp8_tflops:gpu.bf16_tflops;
+  const params={N_B,L,d,B,S,r,lf,m:mode,wpB,opB};
+
+  const mem=calcMem(params);
+  const flops=calcFlops(params);
+  const base_mem=calcMem({...params,wpB:2,opB:4});
+  const saved_gb=base_mem.total-mem.total;
+  const saved_pct=base_mem.total>0?((saved_gb/base_mem.total)*100).toFixed(0):0;
+  const step_s=flops.total/(effT*1e12);
+  const gpus=Math.ceil(mem.total/gpu.mem_gb);
+
+  document.getElementById('main-cards').innerHTML=`
+    <div class="metric"><div class="metric-label">Total memory</div><div class="metric-val">${fmt(mem.total)}</div>${saved_pct>0?`<div class="metric-save">&#8722;${saved_pct}% vs baseline</div>`:'<div class="metric-sub">baseline</div>'}</div>
+    <div class="metric"><div class="metric-label">Compute / step</div><div class="metric-val">${fmtF(flops.total)}</div><div class="metric-sub">${WP_LABEL[wp]} FLOPs</div></div>
+    <div class="metric"><div class="metric-label">Step time</div><div class="metric-val">${fmtT(step_s)}</div><div class="metric-sub">${effT} TFlop/s (${gpu.name.split(' ')[0]})</div></div>
+    <div class="metric"><div class="metric-label">Min GPUs</div><div class="metric-val">${gpus}&times;</div><div class="metric-sub">${gpu.name}</div></div>
+  `;
+
+  const N=N_B*1e9;
+  const wSave=(2-wpB)*(mode==='lora'?N*0.1:N)/1e9;
+  const optSave=(mode==='lora'?2*r*d*L*(lf/100):N)*2*(4-opB)/1e9;
+  const actBase=B*S*d*2*L/1e9*(mode==='lora'?lf/100:1);
+  const actCur=B*S*d*wpB*L/1e9*(mode==='lora'?lf/100:1);
+  const actSave=actBase-actCur;
+  const sbars=[
+    {label:'Weight precision',save:wSave,base:N*2/1e9,col:'#4f8ef7'},
+    {label:'Optimizer states',save:optSave,base:(mode==='lora'?2*r*d*L*(lf/100):N)*2*4/1e9,col:'#3ecf8e'},
+    {label:'Activation memory',save:actSave,base:actBase,col:'#f5a623'},
+    {label:'Total',save:saved_gb,base:base_mem.total,col:'#a78bfa'},
+  ];
+  document.getElementById('savings-bars').innerHTML=sbars.map(({label,save,base,col})=>{
+    const p=Math.min(100,base>0?save/base*100:0);
+    return`<div class="sbar"><span class="sbar-label">${label}</span><div class="sbar-track"><div class="sbar-fill" style="width:${p.toFixed(1)}%;background:${col}"></div></div><span class="sbar-pct" style="color:${col}">${save>0?'&#8722;'+p.toFixed(0)+'%':'0%'}</span></div>`;
+  }).join('');
+
+  let mh='';
+  mem.items.forEach(([k,v,note])=>{
+    mh+=`<div class="bd-row"><div class="bd-key">${k}<small>${note}</small></div><div class="bd-val">${fmt(v)}</div></div>`;
+    mh+=bar(v,mem.total,'#4f8ef7');
+  });
+  mh+=`<div class="bd-row total"><div class="bd-key" style="color:var(--text);font-weight:500;">Total</div><div class="bd-val">${fmt(mem.total)}</div></div>`;
+  document.getElementById('mem-bd').innerHTML=mh;
+
+  let fh='';
+  flops.items.forEach(([k,v,note])=>{
+    fh+=`<div class="bd-row"><div class="bd-key">${k}<small>${note}</small></div><div class="bd-val">${fmtF(v)}</div></div>`;
+    fh+=bar(v,flops.total,'#3ecf8e');
+  });
+  fh+=`<div class="bd-row total"><div class="bd-key" style="color:var(--text);font-weight:500;">Total</div><div class="bd-val">${fmtF(flops.total)}</div></div>`;
+  document.getElementById('comp-bd').innerHTML=fh;
+
+  const modeList=[['lora','LoRA'],['sft','Full FT'],['rl','RL (PPO)'],['pretrain','Pre-train']];
+  document.getElementById('compare').innerHTML=modeList.map(([m_,lbl])=>{
+    const mp=calcMem({...params,m:m_,wpB,opB});
+    const fp=calcFlops({...params,m:m_});
+    const t=fp.total/(effT*1e12);
+    const g=Math.ceil(mp.total/gpu.mem_gb);
+    return`<div class="cc${m_===mode?' active':''}">
+      <div class="cc-title" style="color:${MODE_COLORS[m_]}">${lbl}</div>
+      <div class="cc-row"><span>Memory</span><span>${fmt(mp.total)}</span></div>
+      <div class="cc-row"><span>FLOPs</span><span>${fmtF(fp.total)}</span></div>
+      <div class="cc-row"><span>Step time</span><span>${fmtT(t)}</span></div>
+      <div class="cc-row"><span>Min GPUs</span><span>${g}&times;</span></div>
+    </div>`;
+  }).join('');
+
+  const notes={
+    lora:`LoRA adapter weights stay in fp32 for stability regardless of forward precision. Optimizer states only cover trainable adapter params (${(2*r*d*L*(lf/100)/1e6).toFixed(0)}M params). Activations scale with selected weight precision.`,
+    sft:`A bf16 master weight copy is always kept alongside the forward-precision copy for optimizer stability, so weight savings from fp8/fp4 are partial. Optimizer state quantization is the biggest single lever — fp32 to 8-bit Adam cuts optimizer memory by 4×.`,
+    rl:`RL keeps a frozen reference model in bf16 regardless of training precision, roughly doubling weight memory. KV cache for rollout generation scales with sequence length quadratically. 8-bit Adam is well-supported; 4-bit remains experimental.`,
+    pretrain:`Pre-training is identical to full FT per step. At scale, gradient checkpointing trades ~30% extra compute for ~10× reduction in activation memory. fp8 training is production-ready on H100 with TransformerEngine; fp4 is emerging on B200.`,
+  };
+  document.getElementById('footnote').textContent=notes[mode];
+}
+render();
+</script>
+</body>
+</html>

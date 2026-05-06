@@ -509,6 +509,7 @@ footer {
             <button onclick="setWP('fp8')">fp8</button>
             <button onclick="setWP('fp4')">fp4</button>
           </div>
+          <div id="wp-note" style="display:none;font-size:10px;color:var(--amber);font-family:var(--mono);margin-top:5px;letter-spacing:.04em;">&#9888; emulated on this GPU</div>
         </div>
         <div class="seg-group">
           <div class="seg-label">KV cache precision</div>
@@ -551,10 +552,11 @@ footer {
 let hw='a100', wp='bf16', kv='fp16';
 const GPU={
   a100:{name:'A100 80GB',mem_gb:80,bf16_tflops:312,fp8_tflops:312,fp4_tflops:312,mem_bw:2.0},
-  h100:{name:'H100 80GB',mem_gb:80,bf16_tflops:494,fp8_tflops:989,fp4_tflops:989,mem_bw:3.35},
-  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:1125,fp8_tflops:2250,fp4_tflops:4500,mem_bw:8.0},
+  h100:{name:'H100 80GB',mem_gb:80,bf16_tflops:989,fp8_tflops:1979,fp4_tflops:1979,mem_bw:3.35},
+  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:2250,fp8_tflops:4500,fp4_tflops:9000,mem_bw:8.0},
 };
 const WP_BYTES={bf16:2,fp8:1,fp4:0.5};
+const WP_SUPPORTED={a100:{bf16:true,fp8:false,fp4:false},h100:{bf16:true,fp8:true,fp4:false},b200:{bf16:true,fp8:true,fp4:true}};
 const KV_BYTES={fp16:2,fp8:1,int4:0.5};
 const WP_LABEL={bf16:'bf16',fp8:'fp8',fp4:'fp4'};
 const KV_LABEL={fp16:'fp16',fp8:'fp8',int4:'int4'};
@@ -594,6 +596,7 @@ function render(){
 
   const wpB=WP_BYTES[wp],kvB=KV_BYTES[kv],gpu=GPU[hw];
   const effT=wp==='fp4'?gpu.fp4_tflops:wp==='fp8'?gpu.fp8_tflops:gpu.bf16_tflops;
+  document.getElementById('wp-note').style.display=WP_SUPPORTED[hw][wp]?'none':'block';
   const N=N_B*1e9;
 
   // Memory
@@ -623,7 +626,7 @@ function render(){
     <div class="metric"><div class="metric-label">Total memory</div><div class="metric-val">${fmt(total_mem)}</div>${saved_pct>0?`<div class="metric-save">&#8722;${saved_pct}% vs bf16</div>`:'<div class="metric-sub">baseline</div>'}</div>
     <div class="metric"><div class="metric-label">Min GPUs</div><div class="metric-val">${gpus}&times;</div><div class="metric-sub">${gpu.name}</div></div>
     <div class="metric"><div class="metric-label">TTFT</div><div class="metric-val">${fmtT(ttft)}</div><div class="metric-sub">${B} req × ${S_p.toLocaleString()} tok</div></div>
-    <div class="metric"><div class="metric-label">Decode tok/s</div><div class="metric-val">${fmtTput(decode_tput)}</div><div class="metric-sub">${bound}-bound</div></div>
+    <div class="metric"><div class="metric-label">Decode tok/s (SOL)</div><div class="metric-val">${fmtTput(decode_tput)}</div><div class="metric-sub">${bound}-bound</div></div>
   `;
 
   // Savings bars
@@ -674,7 +677,7 @@ function render(){
       <div class="cc-row"><span>Min GPUs</span><span>${gpus_}&times;</span></div>
       <div class="cc-row"><span>TTFT</span><span>${fmtT(pf_)}</span></div>
       <div class="cc-row"><span>TPOT</span><span>${fmtT(tpot_)}</span></div>
-      <div class="cc-row"><span>Decode tok/s</span><span>${fmtTput(B/tpot_)}</span></div>
+      <div class="cc-row"><span>Decode tok/s (SOL)</span><span>${fmtTput(B/tpot_)}</span></div>
       <div class="cc-row"><span>Bound</span><span>${bound_}</span></div>
     </div>`;
   }).join('');

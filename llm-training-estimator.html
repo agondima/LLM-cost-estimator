@@ -537,6 +537,7 @@ footer {
             <button onclick="setWP('fp8')">fp8</button>
             <button onclick="setWP('fp4')">fp4</button>
           </div>
+          <div id="wp-note" style="display:none;font-size:10px;color:var(--amber);font-family:var(--mono);margin-top:5px;letter-spacing:.04em;">&#9888; emulated on this GPU</div>
         </div>
         <div class="seg-group">
           <div class="seg-label">Optimizer states</div>
@@ -588,10 +589,11 @@ footer {
 let mode='lora', hw='a100', wp='bf16', op='fp32';
 const GPU={
   a100:{name:'A100 80GB',mem_gb:80,bf16_tflops:312,fp8_tflops:312,fp4_tflops:312},
-  h100:{name:'H100 80GB',mem_gb:80,bf16_tflops:494,fp8_tflops:989,fp4_tflops:989},
-  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:1125,fp8_tflops:2250,fp4_tflops:4500},
+  h100:{name:'H100 80GB',mem_gb:80,bf16_tflops:989,fp8_tflops:1979,fp4_tflops:1979},
+  b200:{name:'B200 192GB',mem_gb:192,bf16_tflops:2250,fp8_tflops:4500,fp4_tflops:9000},
 };
 const WP_BYTES={bf16:2,fp8:1,fp4:0.5};
+const WP_SUPPORTED={a100:{bf16:true,fp8:false,fp4:false},h100:{bf16:true,fp8:true,fp4:false},b200:{bf16:true,fp8:true,fp4:true}};
 const OP_BYTES={fp32:4,bf16:2,int8:1,int4:0.5};
 const OP_LABEL={fp32:'fp32 Adam',bf16:'bf16 Adam',int8:'8-bit Adam',int4:'4-bit (exp.)'};
 const WP_LABEL={bf16:'bf16',fp8:'fp8',fp4:'fp4'};
@@ -677,6 +679,7 @@ function render(){
 
   const wpB=WP_BYTES[wp],opB=OP_BYTES[op],gpu=GPU[hw];
   const effT=wp==='fp4'?gpu.fp4_tflops:wp==='fp8'?gpu.fp8_tflops:gpu.bf16_tflops;
+  document.getElementById('wp-note').style.display=WP_SUPPORTED[hw][wp]?'none':'block';
   const params={N_B,L,d,B,S,r,lf,m:mode,wpB,opB};
 
   const mem=calcMem(params);
